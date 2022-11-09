@@ -31,7 +31,8 @@ cc32-disable-warning = $(call try-run,\
 
 # From top-level Makefile
 # NOSTDINC_FLAGS
-VDSO_CPPFLAGS := -nostdinc -isystem $(shell $(CC_ARM32) -print-file-name=include)
+VDSO_CPPFLAGS := -nostdinc
+VDSO_CPPFLAGS += -isystem $(shell $(CC_ARM32) -print-file-name=include 2>/dev/null)
 VDSO_CPPFLAGS += $(LINUXINCLUDE)
 VDSO_CPPFLAGS += $(KBUILD_CPPFLAGS)
 
@@ -97,7 +98,7 @@ VDSO_AFLAGS += -D__ASSEMBLY__
 # From arm vDSO Makefile
 VDSO_LDFLAGS += -Bsymbolic --no-undefined -soname=linux-vdso.so.1
 VDSO_LDFLAGS += -z max-page-size=4096 -z common-page-size=4096
-VDSO_LDFLAGS += -nostdlib -shared --hash-style=sysv --build-id=sha1
+VDSO_LDFLAGS += -shared --hash-style=sysv --build-id=sha1
 
 
 # Borrow vdsomunge.c from the arm vDSO
@@ -116,7 +117,7 @@ asm-obj-vdso := $(addprefix $(obj)/, $(asm-obj-vdso))
 obj-vdso := $(c-obj-vdso) $(asm-obj-vdso)
 
 obj-y += vdso.o
-extra-y += vdso.lds
+targets += vdso.lds
 CPPFLAGS_vdso.lds += -P -C -U$(ARCH)
 
 # Force dependency (vdso.s includes vdso.so through incbin)
@@ -144,12 +145,12 @@ $(asm-obj-vdso): %.o: %.S FORCE
 	$(call if_changed_dep,vdsoas)
 
 # Actual build commands
-quiet_cmd_vdsold = VDSOL32   $@
+quiet_cmd_vdsold = LD32    $@
       cmd_vdsold = $(LD_COMPAT) $(VDSO_LDFLAGS) \
                    -T $(filter %.lds,$^) $(filter %.o,$^) -o $@
-quiet_cmd_vdsocc = VDSOC32   $@
+quiet_cmd_vdsocc = CC32    $@
       cmd_vdsocc = $(CC_ARM32) -Wp,-MD,$(depfile) $(VDSO_CFLAGS) -c -o $@ $<
-quiet_cmd_vdsoas = VDSOA32   $@
+quiet_cmd_vdsoas = AS32    $@
       cmd_vdsoas = $(CC_ARM32) -Wp,-MD,$(depfile) $(VDSO_AFLAGS) -c -o $@ $<
 
 quiet_cmd_vdsomunge = MUNGE   $@

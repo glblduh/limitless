@@ -119,9 +119,16 @@ all.config
 kernel/configs/android-*.cfg
 
 #
-#Ignoring Android.bp link file
+# Ignoring Android.bp link file
 #
 Android.bp
+<<<<<<< HEAD
 
 #Output directory
 out/
+||||||| 82f9daa244e2
+=======
+
+# Ignoring Output directory
+out/
+>>>>>>> f11224333dec37d33e8a1cd21d9c2c41dc547e5e
