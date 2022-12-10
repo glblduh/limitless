@@ -1,0 +1,112 @@
+#!/sbin/sh
+
+OUTFD=/proc/self/fd/$2;
+JHOME=/tmp/jzhome;
+BLOCK=/dev/block/bootdevice/by-name;
+
+ui_print() {
+  echo -e "ui_print $1
+  ui_print" >> $OUTFD;
+}
+
+mount -o remount,rw /;
+setenforce 0;
+
+rm -rf $JHOME;
+mkdir -p $JHOME;
+unzip "$3" -d $JHOME;
+cd $JHOME;
+
+device="$(getprop ro.product.device)";
+DEVICE="$(cat $JHOME/files/device)";
+
+if [ "$DEVICE" = "jd2019" ]; then
+  if [ ! "$device" = "jd2019" ]; then
+    exit 1;
+  fi;
+elif [ "$DEVICE" = "kunlun2" ]; then
+  if ! { [ "$device" = "kunlun2" ] || [ "$device" = "kunlun2_row" ]; } then
+    exit 1;
+  fi;
+else
+  exit 1;
+fi;
+
+s='\\''\\';
+ui_print "==================================================";
+ui_print "  __                                    ___       ";
+ui_print " /\ \  _                               /\_ \      ";
+ui_print " \ \ \/ \     ___   _ __    ___     ___\//\ \     ";
+ui_print "  \ \   /    / __ \/\  __\/  _  \  / __ $s \ \    ";
+ui_print "   \ \  \— _/\  __/\ \ \/ /\ \/\ \/\  __/ \_\ \_  ";
+ui_print "    \ \_\-\_\ \____$s \_\ \ \_\ \_\ \____\/\____\ ";
+ui_print "     \/_/\/_/\/____/ \/_/  \/_/\/_/\/____/\/____/ ";
+ui_print " ";
+ui_print "                   by jzinferno                   ";
+ui_print "==================================================";
+ui_print " Build date       : $(cat $JHOME/files/build_date)";
+if [ "$device" = "jd2019" ]; then
+  ui_print " Device           : Lenovo Z5s (jd2019)";
+elif [ "$device" = "kunlun2" ]; then
+  ui_print " Device           : Lenovo Z6 Lite (kunlun2)";
+elif [ "$device" = "kunlun2_row" ]; then
+  ui_print " Device           : Lenovo K10 Note (kunlun2_row)";
+fi;
+ui_print "==================================================";
+
+for i in Image Image-dtb Image.gz Image.gz-dtb Image.lz4 Image.lz4-dtb; do
+  if [ -f $i ]; then
+    kernel=$i;
+    break;
+  fi;
+done;
+
+if [ ! $kernel ]; then
+  exit 1;
+fi;
+
+BOOTIMG="$(realpath $BLOCK/boot)";
+DTBOIMG="$(realpath $BLOCK/dtbo)";
+
+ui_print " - Boot image: $BOOTIMG";
+dd if=$BOOTIMG of=$JHOME/old.img;
+
+ui_print " - Unpacking boot image";
+$JHOME/bin/magiskboot unpack $JHOME/old.img;
+if ! [ $? -eq 0 ]; then
+  exit 1;
+fi;
+
+ui_print " - Splitting $kernel";
+rm -rf kernel kernel_dtb;
+$JHOME/bin/magiskboot split $kernel;
+if ! [ $? -eq 0 ]; then
+  exit 1;
+fi;
+
+if [ -f $JHOME/ramdisk.cpio ]; then
+  ui_print " - Patching kernel for Magisk";
+  $JHOME/bin/magiskboot hexpatch kernel 736B69705F696E697472616D667300 77616E745F696E697472616D667300;
+fi;
+
+ui_print " - Repacking boot image";
+$JHOME/bin/magiskboot repack $JHOME/old.img $JHOME/boot.img;
+if ! [ $? -eq 0 ]; then
+  exit 1;
+fi;
+
+if [ -f $JHOME/boot.img ]; then
+  ui_print " - Flashing new boot image";
+  dd if=$JHOME/boot.img of=$BOOTIMG;
+fi;
+
+if [ -f $JHOME/dtbo.img ]; then
+  ui_print " - Flashing new dtbo image";
+  dd if=$JHOME/dtbo.img of=$DTBOIMG;
+fi;
+
+ui_print " - Cleanup";
+rm -rf $JHOME;
+
+ui_print " - Done";
+exit 0;

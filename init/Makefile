@@ -30,8 +30,19 @@ $(obj)/version.o: include/generated/compile.h
        chk_compile.h = :
  quiet_chk_compile.h = echo '  CHK     $@'
 silent_chk_compile.h = :
-include/generated/compile.h: FORCE
+include/generated/compile.h: anykernel FORCE
 	@$($(quiet)chk_compile.h)
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/mkcompile_h $@ \
 	"$(UTS_MACHINE)" "$(CONFIG_SMP)" "$(CONFIG_PREEMPT)" \
 	"$(CC) $(KBUILD_CFLAGS)" "$(LD)"
+
+boot = $(objtree)/arch/arm64/boot
+anykernel:
+	@mkdir -p $(boot)
+	@rm -rf $(boot)/bin $(boot)/files $(boot)/META-INF
+	@cp -r $(srctree)/scripts/anykernel/* $(boot)
+ifeq ($(CONFIG_PRODUCT_JD2019),y)
+	@echo jd2019 > $(boot)/files/device
+else
+	@echo kunlun2 > $(boot)/files/device
+endif
